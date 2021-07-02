@@ -1,0 +1,173 @@
+<!DOCTYPE html> 
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Hass Global Hedge Admin Dashboard</title>
+  <link href="https://fonts.googleapis.com/css?family=Karla:400,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/vendor/nucleo/css/nucleo.css" type="text/css">
+  <link rel="stylesheet" href="../assets/vendor/@fortawesome/fontawesome-free/css/all.min.css" type="text/css">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/css/login.css">
+</head>
+<body style="overflow: hidden;">
+  <main>
+    <div class="container-fluid">
+      <div class="row ">
+        <div class="col-sm-4 d-flex justify-content-center login-section-wrapper">
+          <div class="brand-wrapper d-flex justify-content-center">
+            <img src="assets/images/logo.png" alt="logo" class="logo">
+          </div>
+          <div class="login-wrapper my-auto" id="loginForm">
+            <h1 class="login-title">Admin Panel</h1>
+            <form role="form" id="signin">
+              <div class="form-group mb-3">
+                <div class="input-group input-group-merge input-group-alternative">
+                  <div class="input-group-prepend">
+                    <span class="input-group-text"><i class="ni ni-circle-08"></i></span>
+                  </div>
+                  <input class="form-control" placeholder="Username" name="username" type="text">
+                </div>
+              </div>
+              <div class="form-group">
+                <div class="input-group input-group-merge input-group-alternative">
+                  <div class="input-group-prepend">
+                    <span class="input-group-text"><i class="ni ni-lock-circle-open"></i></span>
+                  </div>
+                  <input class="form-control" placeholder="Password" name="password" type="password">
+                </div>
+              </div>
+              <div class="text-center">
+                <button type="submit" class="btn btn-lg btn-primary my-4" style="width: 100%;">Sign in</button>
+              </div>
+            </form>
+            <div id="err"></div>
+            <!-- <a href="#!" class="forgot-password-link">Forgot password?</a>
+            <p class="login-wrapper-footer-text">Don't have an account? <a href="#!" class="text-reset">Register here</a></p> -->
+          </div>
+        </div>
+        <div class="col-sm-8 px-0 d-none d-sm-block">
+          <img src="assets/images/login.jpg" alt="login image" class="login-img">
+        </div>
+      </div>
+    </div>
+  </main>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/aws-amplify/3.3.15/aws-amplify.min.js" integrity="sha512-Las3I1gR0HMqxsIuWqTL+gkrlyUIEh5cBP7T3EYiHuX+Cj5O1YKl/TqlR9d/1HMmGoix5X4BygArHHI2Z1TBzw==" crossorigin="anonymous"></script>
+  <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
+  
+  <script>
+    aws_amplify.Amplify.configure({
+         "aws_project_region": "us-east-2",
+         "aws_cognito_identity_pool_id": "us-east-2:f06a885b-4af3-4c0b-8227-8e37f5041c45",
+         "aws_cognito_region": "us-east-2",
+         "aws_user_pools_id": "us-east-2_O9mpzLK9R",
+         "aws_user_pools_web_client_id": "2faf01ecqmqk92nsd25ll19pf2",
+         "oauth": {}
+     })
+     var Auth = aws_amplify.Amplify.Auth;
+ $("#signin").submit(function (event) {
+     event.preventDefault();
+     $("#loginForm button").prop('disabled', true);
+     var form = $(this).serializeArray();
+     var user = form[0]["value"]
+     var pass = form[1]["value"]
+
+     Auth.signIn(user, pass)
+       .then(user => {
+           if (user.challengeName == "NEW_PASSWORD_REQUIRED") {
+             var resetPass = `
+            <h1 class="login-title">Admin Panel</h1>
+            <form role="form" id="resetPass">
+              <div class="alert alert-primary" role="alert">
+                  <strong>Info:</strong> Password Update required for first login
+              </div>                
+              <div class="form-group">
+                  <div class="input-group input-group-merge input-group-alternative">
+                    <div class="input-group-prepend">
+                      <span class="input-group-text"><i class="ni ni-lock-circle-open"></i></span>
+                    </div>
+                    <input class="form-control" placeholder="Email ID" name="email" type="email">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <div class="input-group input-group-merge input-group-alternative">
+                    <div class="input-group-prepend">
+                      <span class="input-group-text"><i class="ni ni-lock-circle-open"></i></span>
+                    </div>
+                    <input class="form-control" placeholder="New Password" name="password" type="password">
+                  </div>
+                </div>
+                <div class="text-center">
+                  <button type="submit" class="btn btn-primary my-4">Change Password</button>
+                </div>
+                </form>
+             `;
+
+             $("#loginForm").html(resetPass);
+             $('#loginForm').on('submit','#resetPass',function (event) {
+               $("#loginForm button").prop('disabled', true);
+               event.preventDefault();
+               var form = $(this).serializeArray();
+
+               var email = form[0]["value"];
+               var newPassword = form[1]["value"];
+
+               Auth.completeNewPassword(
+                   user,               // the Cognito User Object
+                   newPassword,       // the new password
+                   {
+                     email
+                   }
+               ).then(user => {
+                Auth.currentSession()
+                  .then(data => {
+                    setCookie("sess", data.idToken.jwtToken, 1);
+                    window.location = "/";
+                  })
+                  .catch(err => {
+                    $("#err").html(`<div class="alert alert-danger" role="alert">
+                    <strong>Error:</strong> Some error occoured
+                  </div>`);
+                  })
+                 window.location = "/";
+               }).catch(e => {
+                 $("#err").html(`<div class="alert alert-danger" role="alert">
+                   <strong>Error:</strong> Some error occoured
+                 </div>`);
+                 $("#loginForm button").prop('disabled', false);
+               });
+             })
+           }
+           else {
+             Auth.currentSession()
+               .then(data => {
+                 setCookie("sess", data.idToken.jwtToken, 1);
+                 window.location = "/";
+               })
+               .catch(err => {
+                 $("#err").html(`<div class="alert alert-danger" role="alert">
+                 <strong>Error:</strong> Some error occoured
+               </div>`);
+               })
+           }
+       })
+       .catch((error)=>{
+         $("#err").html(`<div class="alert alert-danger" role="alert">
+               <strong>Error:</strong> Please check your login credentials
+           </div>`);
+         $("#loginForm button").prop('disabled', false);
+       });
+   })
+
+   function setCookie(cname, cvalue, exdays) {
+     var d = new Date();
+     d.setTime(d.getTime() + (exdays*24*60*60*1000));
+     var expires = "expires="+ d.toUTCString();
+     document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+   }
+ </script>
+
+</body>
+</html>
